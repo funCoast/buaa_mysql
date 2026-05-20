@@ -1,0 +1,20 @@
+Package: mysql_code_real_deploy_v1.zip
+Purpose: MySQL + DSM cache source deployment package for real-machine experiments.
+
+Included:
+- copy_wyq_mysql/mysql-server-8.4 source code, without mysql-test and build outputs
+- copy_wyq_mysql/ub2_simulator source code, without build outputs
+- copy_wyq_mysql/workloads scripts and workload tool sources, without generated datasets
+- run_monitor_workloads_compare.sh and paper/monitor helper scripts
+- real_run scripts for real-machine performance experiments and plotting
+- README_REAL_DEPLOY.md deployment guide
+
+Excluded intentionally:
+- runs/
+- mysql_install*/
+- build/ and CMakeFiles/
+- .git/
+- mysql-test/
+- TPC-H .tbl data and tpch_data/
+- InnoDB/MySQL datadir files such as .ibd, .MYD, .MYI, .frm
+- large generated TPC-C output files

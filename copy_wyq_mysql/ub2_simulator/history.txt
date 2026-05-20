@@ -1,0 +1,11 @@
+terminal 1 执行 
+. sim_env.sh 
+cd /workspace/ub2_simulator/dsm_runtime/build
+mpirun -np 4 ./simulator
+
+terminal 2 执行 
+. sim_env.sh 
+cd /workspace/ub2_simulator/dsm_runtime/build
+mpirun -np 4 ./export_client
+./example_after_export 
+./concurrent_index_test 

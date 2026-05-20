@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+RUN_TPCH=1 \
+RUN_TPCC=0 \
+RUN_MICRO_SCAN=0 \
+RUN_MICRO_RANDOM=0 \
+TPCH_DATASET="${TPCH_DATASET:-sf1}" \
+TPCH_QIDS="${TPCH_QIDS:-1 3 6 12 14 19}" \
+TPCH_QUERY_REPEATS="${TPCH_QUERY_REPEATS:-2}" \
+TPCH_QUERY_TIMEOUT_SEC="${TPCH_QUERY_TIMEOUT_SEC:-300}" \
+DSM_CACHE_BYTES_PER_NODE="${DSM_CACHE_BYTES_PER_NODE:-16777216}" \
+FIL_READ_CACHE_MAX_PAGES="${FIL_READ_CACHE_MAX_PAGES:-16384}" \
+RUN_ROOT="${RUN_ROOT:-$PWD/runs/exp_tpch_$(date +%Y%m%d_%H%M%S)}" \
+PORT="${PORT:-3331}" \
+./run_monitor_workloads_compare.sh

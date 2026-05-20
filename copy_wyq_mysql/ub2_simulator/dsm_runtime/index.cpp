@@ -1,0 +1,1 @@
+// index.cpp 的实现已移至 index.h（header-only 模板实现）

@@ -1,0 +1,51 @@
+# Build outputs
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+
+# MySQL install/build artifacts
+mysql_install*/
+mysql_install_verify/
+copy_wyq_mysql/mysql_install*/
+copy_wyq_mysql/mysql-server-8.4/build/
+copy_wyq_mysql/ub2_simulator/dsm_runtime/build/
+
+# Experiment outputs and runtime state
+runs/
+copy_wyq_mysql/runs/
+*.log
+*.err
+*.pid
+*.sock
+*.out
+
+# Generated datasets / database files
+*.tbl
+*.tbl.*
+*.ibd
+*.MYD
+*.MYI
+ibdata*
+ibtmp*
+undo_001
+undo_002
+#innodb_redo/
+#innodb_temp/
+auto.cnf
+copy_wyq_mysql/workloads/tpch_data/
+copy_wyq_mysql/workloads/tpch-kit/ref_data/
+copy_wyq_mysql/workloads/tpch-kit/dbgen/tmp/
+copy_wyq_mysql/workloads/tpcc-mysql/tpcc_load
+copy_wyq_mysql/workloads/tpcc-mysql/tpcc_start
+
+# Archives generated outside git
+/*.zip
+/*.tar
+/*.tar.gz
+/*.tgz
+
+# Local OS/editor files
+.DS_Store
+._*
