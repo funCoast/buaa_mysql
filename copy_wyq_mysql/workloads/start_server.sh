@@ -24,6 +24,7 @@ cmd=(
   --pid-file="$PID_FILE"
   --performance_schema=ON
   --mysqlx=OFF
+  --ssl=0
   --secure-file-priv=
 )
 
