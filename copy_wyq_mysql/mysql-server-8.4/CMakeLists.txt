@@ -854,7 +854,7 @@ IF(NOT WITHOUT_SERVER)
     # Do not use data from unit testing when optimizing.
     OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" OFF)
   ELSE()
-    OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+    OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" OFF)
   ENDIF()
   OPTION(WITH_ROUTER "Build MySQL Router" ON)
 ENDIF()
