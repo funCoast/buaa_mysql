@@ -42,11 +42,12 @@ awk -F '\t' '
   NR == 1 { next }
   {
     key = $2 "\t" $3
+    keys[key] = 1
     rows[key, $1] = $0
   }
   END {
     print "qid\trepeat\tno_status\tdsm_status\tno_seconds\tdsm_seconds\tno_wall_time_ns\tdsm_wall_time_ns\tno_logical_io_cost_ns\tdsm_logical_io_cost_ns\tno_logical_wall_ns\tdsm_logical_wall_ns\tlogical_wall_reduction_pct\tlogical_io_reduction_pct\tno_buf_hit\tdsm_buf_hit\tno_runtime_sync\tdsm_runtime_sync\tno_disk_sync\tdsm_disk_sync\tno_runtime_async\tdsm_runtime_async\tno_disk_async\tdsm_disk_async\tno_run_root\tdsm_run_root"
-    for (key in rows) {
+    for (key in keys) {
       no = rows[key, "no_dsm"]
       dsm = rows[key, "dsm"]
       if (no == "" || dsm == "") { continue }
