@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 
 #include "actor.h"
 #include "dsm_config.h"
@@ -35,14 +36,17 @@ public:
   bool read_page(const page_id_t &page_id, void *data, size_t size);
   void erase_page(const page_id_t &page_id);
 
-  size_t index_size() const { return index_.size(); }
+  size_t index_size() const {
+    std::shared_lock<std::shared_mutex> l(mu_);
+    return index_.size();
+  }
   size_t node_count() const {
-    std::lock_guard<std::mutex> l(mu_);
+    std::shared_lock<std::shared_mutex> l(mu_);
     return actors_.size();
   }
 
 private:
-  mutable std::mutex mu_;
+  mutable std::shared_mutex mu_;
   std::map<uint8_t, std::shared_ptr<byte_actor_t>> actors_;
   page_index_t index_;
 };

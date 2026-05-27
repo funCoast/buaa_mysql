@@ -19,6 +19,7 @@ MYSQL_BP_SIZE="${MYSQL_BP_SIZE:-5M}"
 DSM_CACHE_BYTES_PER_NODE="${DSM_CACHE_BYTES_PER_NODE:-536870912}"
 FIL_READ_CACHE_MAX_PAGES="${FIL_READ_CACHE_MAX_PAGES:-131072}"
 TPCH_QIDS="${TPCH_QIDS:-1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22}"
+TPCH_WARMUP_REPEATS="${TPCH_WARMUP_REPEATS:-2}"
 TPCH_QUERY_TIMEOUT_SEC="${TPCH_QUERY_TIMEOUT_SEC:-600}"
 TPCH_SF="${TPCH_SF:-1}"
 COST_BUF_NS="${COST_BUF_NS:-100}"
@@ -33,7 +34,7 @@ QGEN="${QGEN:-$TPCH_DBGEN/qgen}"
 
 mkdir -p "$RUN_ROOT"
 SUMMARY="$RUN_ROOT/query_windows.tsv"
-printf "mode\tqid\tstatus\trc\tseconds\twall_time_ns\tbuf_hit\truntime_sync\truntime_async\tdisk_sync\tdisk_async\tlogical_ns\tsql\n" > "$SUMMARY"
+printf "mode\tqid\tstatus\trc\tseconds\twall_time_ns\tbuf_hit\truntime_sync\truntime_async\tdisk_sync\tdisk_async\tlogical_io_cost_ns\tsql\n" > "$SUMMARY"
 
 MYSQLD_PID=""
 SIM_PID=""
@@ -231,8 +232,10 @@ run_mode() {
     start_dsm_runtime
   fi
   start_mysql "$mode" "$datadir" "$log"
-  for qid in $TPCH_QIDS; do
-    "$MYSQL" --protocol=socket -S "$SOCKET" -uroot tpch < "$RUN_ROOT/tpch_sql/q${qid}_run.sql" > "$RUN_ROOT/${mode}_q${qid}_warmup.out" 2>&1 || true
+  for warmup_round in $(seq 1 "$TPCH_WARMUP_REPEATS"); do
+    for qid in $TPCH_QIDS; do
+      "$MYSQL" --protocol=socket -S "$SOCKET" -uroot tpch < "$RUN_ROOT/tpch_sql/q${qid}_run.sql" > "$RUN_ROOT/${mode}_q${qid}_warmup_r${warmup_round}.out" 2>&1 || true
+    done
   done
   for qid in $TPCH_QIDS; do
     run_one_query "$mode" "$qid" "$log" "$RUN_ROOT/tpch_sql/q${qid}_run.sql" "$RUN_ROOT/${mode}_q${qid}.out"

@@ -41,15 +41,15 @@ REAL_FAIL_FAST="${REAL_FAIL_FAST:-0}"
 # Microbench parameters.
 REAL_RANDOM_PAGES_LIST="${REAL_RANDOM_PAGES_LIST:-3000 6000 12000}"
 REAL_RANDOM_PASSES="${REAL_RANDOM_PASSES:-8}"
-REAL_RANDOM_WARMUP_PASSES="${REAL_RANDOM_WARMUP_PASSES:-1}"
+REAL_RANDOM_WARMUP_PASSES="${REAL_RANDOM_WARMUP_PASSES:-2}"
 
 REAL_SCAN_PAGES_LIST="${REAL_SCAN_PAGES_LIST:-3000 6000}"
 REAL_SCAN_REPEATS="${REAL_SCAN_REPEATS:-8}"
-REAL_SCAN_WARMUP_REPEATS="${REAL_SCAN_WARMUP_REPEATS:-1}"
+REAL_SCAN_WARMUP_REPEATS="${REAL_SCAN_WARMUP_REPEATS:-2}"
 
 REAL_RANDOM_UPDATE_PAGES_LIST="${REAL_RANDOM_UPDATE_PAGES_LIST:-800 1500}"
 REAL_RANDOM_UPDATE_PASSES="${REAL_RANDOM_UPDATE_PASSES:-2}"
-REAL_RANDOM_UPDATE_WARMUP_PASSES="${REAL_RANDOM_UPDATE_WARMUP_PASSES:-1}"
+REAL_RANDOM_UPDATE_WARMUP_PASSES="${REAL_RANDOM_UPDATE_WARMUP_PASSES:-2}"
 
 # TPC-C/TPC-H parameters.
 REAL_TPCC_W="${REAL_TPCC_W:-4}"
@@ -61,7 +61,7 @@ REAL_TPCC_DURATION="${REAL_TPCC_DURATION:-180}"
 REAL_TPCH_DATASET="${REAL_TPCH_DATASET:-sf1}"
 REAL_TPCH_QIDS="${REAL_TPCH_QIDS:-1 3 6 12 14 19}"
 REAL_TPCH_ISOLATED="${REAL_TPCH_ISOLATED:-1}"
-REAL_TPCH_WARMUP_REPEATS="${REAL_TPCH_WARMUP_REPEATS:-1}"
+REAL_TPCH_WARMUP_REPEATS="${REAL_TPCH_WARMUP_REPEATS:-2}"
 REAL_TPCH_QUERY_REPEATS="${REAL_TPCH_QUERY_REPEATS:-2}"
 REAL_TPCH_QUERY_TIMEOUT_SEC="${REAL_TPCH_QUERY_TIMEOUT_SEC:-600}"
 
@@ -148,6 +148,21 @@ append_tpch_isolated_summary() {
       }
     }
   ' "$summary" >> "$MASTER"
+}
+
+append_tpch_isolated_paired_summary() {
+  local experiment="$1" config_prefix="$2" paired="$3"
+  awk -F'\t' -v OFS='\t' \
+      -v experiment="$experiment" \
+      -v config_prefix="$config_prefix" '
+    NR > 1 {
+      workload = "TPCH_Q" $1
+      config = config_prefix "_q=" $1
+      repeat = $2
+      print experiment, workload, "no_dsm", config, repeat, $15, $17, $21, $19, $23, $7, $11, $3, $25
+      print experiment, workload, "dsm", config, repeat, $16, $18, $22, $20, $24, $8, $12, $4, $26
+    }
+  ' "$paired" >> "$MASTER"
 }
 
 RUN_SEQ=0
@@ -275,7 +290,9 @@ if [[ "$REAL_RUN_TPCH" == "1" ]]; then
       "$TPCH_ISOLATED_RUNNER" > "$tpch_run_dir/runner.out" 2> "$tpch_run_dir/runner.err"
     rc=$?
     set -e
-    if [[ -f "$tpch_run_dir/query_windows_isolated.tsv" ]]; then
+    if [[ -f "$tpch_run_dir/query_windows_isolated_paired.tsv" ]]; then
+      append_tpch_isolated_paired_summary "tpch_isolated" "$tpch_config" "$tpch_run_dir/query_windows_isolated_paired.tsv"
+    elif [[ -f "$tpch_run_dir/query_windows_isolated.tsv" ]]; then
       append_tpch_isolated_summary "tpch_isolated" "$tpch_config" "$tpch_run_dir/query_windows_isolated.tsv"
     else
       append_failed_run "tpch_isolated" "$tpch_config" "all" "FAIL(rc=$rc)" "$tpch_run_dir/runner.err"
