@@ -5,7 +5,7 @@
 namespace hw_dsm_runtime {
 
 void runtime::register_memory(uint8_t node_id, void *mapped_addr, size_t size) {
-  std::unique_lock<std::shared_mutex> l(mu_);
+  std::unique_lock<std::shared_timed_mutex> l(mu_);
   auto actor = std::make_shared<byte_actor_t>(node_id, mapped_addr, size);
   if (!actor->init()) {
     std::cerr << "[dsm_runtime] Failed to init actor for node "
@@ -17,7 +17,7 @@ void runtime::register_memory(uint8_t node_id, void *mapped_addr, size_t size) {
 
 bool runtime::write_page(const page_id_t &page_id, const void *data,
                          size_t size) {
-  std::unique_lock<std::shared_mutex> l(mu_);
+  std::unique_lock<std::shared_timed_mutex> l(mu_);
   if (actors_.empty()) {
     return false;
   }
@@ -55,7 +55,7 @@ bool runtime::write_page(const page_id_t &page_id, const void *data,
 }
 
 bool runtime::read_page(const page_id_t &page_id, void *data, size_t size) {
-  std::shared_lock<std::shared_mutex> l(mu_);
+  std::shared_lock<std::shared_timed_mutex> l(mu_);
   extent_location_t location;
   if (!index_.find(page_id, location)) {
     return false;
@@ -67,7 +67,7 @@ bool runtime::read_page(const page_id_t &page_id, void *data, size_t size) {
 }
 
 void runtime::erase_page(const page_id_t &page_id) {
-  std::unique_lock<std::shared_mutex> l(mu_);
+  std::unique_lock<std::shared_timed_mutex> l(mu_);
   index_.erase(page_id);
   // 注意：底层 extent 的存储不会被回收（runtime 是追加分配模式）。
   // 这里只是从索引里剔除，下次读同一个 page 会视作 miss。

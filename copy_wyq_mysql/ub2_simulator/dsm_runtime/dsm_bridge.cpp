@@ -47,7 +47,7 @@ std::vector<MappedRegion> g_regions;
  * 索引是 dsm_bridge 自己持有的，不依赖 runtime 的 index_；这也意味着
  * mysqld 进程重启后整个映射会失效（预期行为，与 L2 缓存语义一致）。
  * ---------------------------------------------------------------------------*/
-std::shared_mutex g_id_mu;
+std::shared_timed_mutex g_id_mu;
 std::unordered_map<uint64_t, uint32_t> g_id_to_vpage;
 uint32_t g_next_vpage = 0;
 uint32_t g_vpage_capacity = 0;
@@ -175,7 +175,7 @@ bool do_setup_unlocked() {
   g_vpage_capacity = static_cast<uint32_t>(
       (total_bytes / EXTENT_SIZE) * PAGES_PER_EXTENT);
   {
-    std::unique_lock<std::shared_mutex> l(g_id_mu);
+    std::unique_lock<std::shared_timed_mutex> l(g_id_mu);
     g_id_to_vpage.clear();
     g_id_to_vpage.reserve(g_vpage_capacity);
     g_next_vpage = 0;
@@ -212,7 +212,7 @@ void teardown() {
   }
   g_regions.clear();
   {
-    std::unique_lock<std::shared_mutex> l(g_id_mu);
+    std::unique_lock<std::shared_timed_mutex> l(g_id_mu);
     g_id_to_vpage.clear();
     g_next_vpage = 0;
     g_vpage_capacity = 0;
@@ -228,7 +228,7 @@ static bool lookup_or_allocate(uint32_t space_id, uint32_t page_num,
                                bool allocate, uint32_t *out_vpage) {
   uint64_t key = make_key(space_id, page_num);
   {
-    std::shared_lock<std::shared_mutex> l(g_id_mu);
+    std::shared_lock<std::shared_timed_mutex> l(g_id_mu);
     auto it = g_id_to_vpage.find(key);
     if (it != g_id_to_vpage.end()) {
       *out_vpage = it->second;
@@ -236,7 +236,7 @@ static bool lookup_or_allocate(uint32_t space_id, uint32_t page_num,
     }
   }
   if (!allocate) return false;
-  std::unique_lock<std::shared_mutex> l(g_id_mu);
+  std::unique_lock<std::shared_timed_mutex> l(g_id_mu);
   auto it = g_id_to_vpage.find(key);
   if (it != g_id_to_vpage.end()) {
     *out_vpage = it->second;
