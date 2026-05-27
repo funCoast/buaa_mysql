@@ -333,6 +333,7 @@ static bool s_dsm_active = false;
  *==========================================================================*/
 static bool s_layer_enabled = true;
 static bool s_trace = false;
+static bool s_timing = false;
 
 /** Lightweight atomic counters so benchmarks can observe hit rate without
 paying the cost of stdout prints. Snapshot dumped at close() / SIGUSR1. */
@@ -362,6 +363,30 @@ struct Timer {
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::steady_clock::now() - t0)
             .count());
+  }
+};
+
+struct Optional_timer {
+  bool enabled;
+  std::chrono::steady_clock::time_point t0;
+  std::atomic<uint64_t> &acc;
+
+  Optional_timer(bool enabled_, std::atomic<uint64_t> &acc_)
+      : enabled(enabled_), acc(acc_) {
+    if (enabled) {
+      t0 = std::chrono::steady_clock::now();
+    }
+  }
+
+  ~Optional_timer() {
+    if (enabled) {
+      acc.fetch_add(
+          static_cast<uint64_t>(
+              std::chrono::duration_cast<std::chrono::nanoseconds>(
+                  std::chrono::steady_clock::now() - t0)
+                  .count()),
+          std::memory_order_relaxed);
+    }
   }
 };
 
@@ -441,6 +466,7 @@ cache。无论哪条路径都会清空状态以保证重启后一致性（防止
 void init() {
   s_layer_enabled = env_truthy("FIL_READ_CACHE_ENABLE", true);
   s_trace         = env_truthy("FIL_READ_CACHE_TRACE", false);
+  s_timing        = env_truthy("FIL_READ_CACHE_TIMING", false);
   s_fallback_max_pages = static_cast<size_t>(
       env_u64_or("FIL_READ_CACHE_MAX_PAGES", FIL_READ_CACHE_MAX_PAGES_DEFAULT));
 
@@ -486,10 +512,12 @@ void init() {
 
   if (s_dsm_active) {
     std::cerr << "[fil_read_cache] init: DSM backend ACTIVE"
-              << " trace=" << (s_trace ? 1 : 0) << std::endl;
+              << " trace=" << (s_trace ? 1 : 0)
+              << " timing=" << (s_timing ? 1 : 0) << std::endl;
   } else {
     std::cerr << "[fil_read_cache] init: DSM unavailable, using in-process "
                  "LRU fallback  trace=" << (s_trace ? 1 : 0)
+              << " timing=" << (s_timing ? 1 : 0)
               << " max_pages=" << s_fallback_max_pages << std::endl;
   }
 }
@@ -545,11 +573,7 @@ bool get(const page_id_t &page_id, ulint len, void *buf) {
   if (!s_layer_enabled) {
     return false;
   }
-  Timer __t;
-  struct _RecordNs {
-    Timer &t;
-    ~_RecordNs() { s_ns_get.fetch_add(t.ns(), std::memory_order_relaxed); }
-  } __r{__t};
+  Optional_timer __timer(s_timing, s_ns_get);
   if (s_dsm_active) {
     if (dsm_bridge::read_page(page_id.space(), page_id.page_no(), buf, len)) {
       s_ctr_get_hit.fetch_add(1, std::memory_order_relaxed);
@@ -589,11 +613,7 @@ void put(const page_id_t &page_id, ulint len, const void *buf) {
   if (len == 0 || len > UNIV_PAGE_SIZE_MAX) {
     return;
   }
-  Timer __t;
-  struct _RecordNs {
-    Timer &t;
-    ~_RecordNs() { s_ns_put.fetch_add(t.ns(), std::memory_order_relaxed); }
-  } __r{__t};
+  Optional_timer __timer(s_timing, s_ns_put);
   if (s_dsm_active) {
     if (dsm_bridge::write_page(page_id.space(), page_id.page_no(), buf, len)) {
       s_ctr_put.fetch_add(1, std::memory_order_relaxed);
@@ -637,11 +657,7 @@ void put(const page_id_t &page_id, ulint len, const void *buf) {
 /** Invalidate a page from cache (on write) */
 void invalidate(const page_id_t &page_id) {
   if (!s_layer_enabled) return;
-  Timer __t;
-  struct _RecordNs {
-    Timer &t;
-    ~_RecordNs() { s_ns_inv.fetch_add(t.ns(), std::memory_order_relaxed); }
-  } __r{__t};
+  Optional_timer __timer(s_timing, s_ns_inv);
   if (s_dsm_active) {
     dsm_bridge::erase_page(page_id.space(), page_id.page_no());
     s_ctr_invalidate.fetch_add(1, std::memory_order_relaxed);
@@ -8614,7 +8630,8 @@ dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
      对读操作我们记 count + ns；trace=1 时为每一次读打一条 DISK log，
      便于和 DSM_HIT log 配对看 end-to-end 页来源。 */
   const bool __is_read = type.is_read() && byte_offset == 0;
-  fil_read_cache::Timer __doio_t;
+  fil_read_cache::Optional_timer __doio_timer(
+      __is_read && fil_read_cache::s_timing, fil_read_cache::s_ns_doio_read);
 #endif
 
   auto const err = shard->do_io(type, sync, page_id, page_size, byte_offset,
@@ -8625,8 +8642,6 @@ dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
     if (err == DB_SUCCESS) {
       fil_cache_monitor::record_disk_read(page_id, sync);
     }
-    fil_read_cache::s_ns_doio_read.fetch_add(__doio_t.ns(),
-                                             std::memory_order_relaxed);
     fil_read_cache::s_cnt_doio_read.fetch_add(1, std::memory_order_relaxed);
     if (fil_read_cache::s_trace) {
       std::cerr << "[fil_io][DISK] " << (sync ? "sync" : "async")
