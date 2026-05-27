@@ -76,7 +76,7 @@ fi
 
 MASTER="$REAL_RUN_ROOT/real_all.tsv"
 MEDIAN="$REAL_RUN_ROOT/real_medians.tsv"
-HEADER=$'experiment\tworkload\tmode\tconfig\trepeat\tbuf_hit\truntime_sync\truntime_async\tdisk_sync\tdisk_async\twall_time_ns\tlogical_wall_ns\tstatus\tlog'
+HEADER=$'experiment\tworkload\tmode\tconfig\trepeat\tbuf_hit\truntime_sync\truntime_async\tdisk_sync\tdisk_async\twall_time_ns\tlogical_io_cost_ns\tlogical_wall_ns\tstatus\tlog'
 printf "%s\n" "$HEADER" > "$MASTER"
 
 write_config() {
@@ -122,14 +122,14 @@ append_summary() {
       -v config="$config" \
       -v repeat="$repeat" '
     NR > 1 {
-      print experiment, $2, $3, config, repeat, $4, $6, $7, $9, $10, $11, $12, $17, $18
+      print experiment, $2, $3, config, repeat, $4, $6, $7, $9, $10, $11, $12, $13, $18, $19
     }
   ' "$summary" >> "$MASTER"
 }
 
 append_failed_run() {
   local experiment="$1" config="$2" repeat="$3" status="$4" log="$5"
-  printf "%s\tNA\tNA\t%s\t%s\t0\t0\t0\t0\t0\t0\t0\t%s\t%s\n" \
+  printf "%s\tNA\tNA\t%s\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t%s\t%s\n" \
     "$experiment" "$config" "$repeat" "$status" "$log" >> "$MASTER"
 }
 
@@ -141,10 +141,10 @@ append_tpch_isolated_summary() {
     NR > 1 {
       if (NF >= 15) {
         wall_time_ns = $7
-        print experiment, "TPCH_Q" $2, $1, config_prefix "_q=" $2, $3, $8, $9, $10, $11, $12, wall_time_ns, $13, $4, $15
+        print experiment, "TPCH_Q" $2, $1, config_prefix "_q=" $2, $3, $8, $9, $10, $11, $12, wall_time_ns, $13, $13, $4, $15
       } else {
         wall_time_ns = $6 * 1000000000
-        print experiment, "TPCH_Q" $2, $1, config_prefix "_q=" $2, $3, $7, $8, $9, $10, $11, wall_time_ns, $12, $4, $14
+        print experiment, "TPCH_Q" $2, $1, config_prefix "_q=" $2, $3, $7, $8, $9, $10, $11, wall_time_ns, $12, $12, $4, $14
       }
     }
   ' "$summary" >> "$MASTER"
@@ -159,8 +159,8 @@ append_tpch_isolated_paired_summary() {
       workload = "TPCH_Q" $1
       config = config_prefix "_q=" $1
       repeat = $2
-      print experiment, workload, "no_dsm", config, repeat, $15, $17, $21, $19, $23, $7, $11, $3, $25
-      print experiment, workload, "dsm", config, repeat, $16, $18, $22, $20, $24, $8, $12, $4, $26
+      print experiment, workload, "no_dsm", config, repeat, $15, $17, $21, $19, $23, $7, $9, $11, $3, $25
+      print experiment, workload, "dsm", config, repeat, $16, $18, $22, $20, $24, $8, $10, $12, $4, $26
     }
   ' "$paired" >> "$MASTER"
 }

@@ -36,7 +36,7 @@ PAPER_FAIL_FAST="${PAPER_FAIL_FAST:-0}"
 mkdir -p "$PAPER_RUN_ROOT"
 
 MASTER="$PAPER_RUN_ROOT/paper_all.tsv"
-HEADER=$'experiment\tworkload\tmode\tconfig\trepeat\tbuf_hit\truntime_sync\truntime_async\tdisk_sync\tdisk_async\twall_time_ns\tlogical_wall_ns\tstatus\tlog'
+HEADER=$'experiment\tworkload\tmode\tconfig\trepeat\tbuf_hit\truntime_sync\truntime_async\tdisk_sync\tdisk_async\twall_time_ns\tlogical_io_cost_ns\tlogical_wall_ns\tstatus\tlog'
 printf "%s\n" "$HEADER" > "$MASTER"
 
 init_table() {
@@ -51,14 +51,14 @@ append_summary() {
       -v config="$config" \
       -v repeat="$repeat" '
     NR > 1 {
-      print experiment, $2, $3, config, repeat, $4, $6, $7, $9, $10, $11, $12, $17, $18
+      print experiment, $2, $3, config, repeat, $4, $6, $7, $9, $10, $11, $12, $13, $18, $19
     }
   ' "$summary" | tee -a "$out_file" >> "$MASTER"
 }
 
 append_failed_run() {
   local experiment="$1" out_file="$2" config="$3" repeat="$4" status="$5" log="$6"
-  printf "%s\tNA\tNA\t%s\t%s\t0\t0\t0\t0\t0\t0\t0\t%s\t%s\n" \
+  printf "%s\tNA\tNA\t%s\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t%s\t%s\n" \
     "$experiment" "$config" "$repeat" "$status" "$log" | tee -a "$out_file" >> "$MASTER"
 }
 
@@ -119,7 +119,7 @@ fields = [
     "experiment", "workload", "mode", "config", "n",
     "buf_hit_median", "runtime_sync_median", "runtime_async_median",
     "disk_sync_median", "disk_async_median",
-    "wall_time_ns_median", "logical_wall_ns_median",
+    "wall_time_ns_median", "logical_io_cost_ns_median", "logical_wall_ns_median",
 ]
 numeric = fields[5:]
 source_key = {
@@ -129,6 +129,7 @@ source_key = {
     "disk_sync_median": "disk_sync",
     "disk_async_median": "disk_async",
     "wall_time_ns_median": "wall_time_ns",
+    "logical_io_cost_ns_median": "logical_io_cost_ns",
     "logical_wall_ns_median": "logical_wall_ns",
 }
 

@@ -53,6 +53,7 @@ def main() -> int:
         "disk_sync_median",
         "disk_async_median",
         "wall_time_ns_median",
+        "logical_io_cost_ns_median",
         "logical_wall_ns_median",
     ]
 
@@ -74,6 +75,7 @@ def main() -> int:
                     "disk_sync_median": median_int(gr, "disk_sync"),
                     "disk_async_median": median_int(gr, "disk_async"),
                     "wall_time_ns_median": median_int(gr, "wall_time_ns"),
+                    "logical_io_cost_ns_median": median_int(gr, "logical_io_cost_ns"),
                     "logical_wall_ns_median": median_int(gr, "logical_wall_ns"),
                 }
             )
