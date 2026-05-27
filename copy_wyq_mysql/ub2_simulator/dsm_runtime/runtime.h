@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <vector>
 
 #include "actor.h"
 #include "dsm_config.h"
@@ -49,6 +50,8 @@ private:
   mutable std::shared_timed_mutex mu_;
   std::map<uint8_t, std::shared_ptr<byte_actor_t>> actors_;
   page_index_t index_;
+  std::vector<extent_location_t> direct_locations_;
+  std::vector<uint8_t> direct_valid_;
 };
 
 }  // namespace hw_dsm_runtime
