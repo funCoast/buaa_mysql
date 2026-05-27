@@ -113,7 +113,6 @@ start_mysql() {
     --port="$PORT" \
     --pid-file="$PID_FILE" \
     --mysqlx=OFF \
-    --ssl=0 \
     --performance_schema=ON \
     --secure-file-priv= \
     --innodb-buffer-pool-size="$MYSQL_BP_SIZE" \
