@@ -66,6 +66,7 @@ MICRO_RANDOM_ROWS_PER_PAGE="${MICRO_RANDOM_ROWS_PER_PAGE:-4}"
 MICRO_RANDOM_PASSES="${MICRO_RANDOM_PASSES:-6}"
 MICRO_RANDOM_WARMUP_PASSES="${MICRO_RANDOM_WARMUP_PASSES:-0}"
 MICRO_RANDOM_STRIDE="${MICRO_RANDOM_STRIDE:-997}"
+MICRO_RANDOM_BATCH_SIZE="${MICRO_RANDOM_BATCH_SIZE:-1}"
 
 MICRO_RANDOM_UPDATE_DB="${MICRO_RANDOM_UPDATE_DB:-micro_random_update_monitor}"
 MICRO_RANDOM_UPDATE_PAGES="${MICRO_RANDOM_UPDATE_PAGES:-1500}"
@@ -116,6 +117,7 @@ Environment knobs:
   MICRO_RANDOM_ROWS_PER_PAGE=N default: 4
   MICRO_RANDOM_PASSES=N        default: 6
   MICRO_RANDOM_STRIDE=N        default: 997
+  MICRO_RANDOM_BATCH_SIZE=N    default: 1, group N point lookups per SELECT
   MICRO_RANDOM_UPDATE_PAGES=N  default: 1500
   MICRO_RANDOM_UPDATE_PASSES=N default: 3
   MICRO_SEQ_WRITE_INSERT_ROWS=N default: 6000
@@ -193,6 +195,7 @@ write_run_config() {
     printf "MICRO_RANDOM_WARMUP_PASSES=%s\n" "$MICRO_RANDOM_WARMUP_PASSES"
     printf "MICRO_RANDOM_PASSES=%s\n" "$MICRO_RANDOM_PASSES"
     printf "MICRO_RANDOM_STRIDE=%s\n" "$MICRO_RANDOM_STRIDE"
+    printf "MICRO_RANDOM_BATCH_SIZE=%s\n" "$MICRO_RANDOM_BATCH_SIZE"
     printf "MICRO_RANDOM_UPDATE_PAGES=%s\n" "$MICRO_RANDOM_UPDATE_PAGES"
     printf "MICRO_RANDOM_UPDATE_ROWS_PER_PAGE=%s\n" "$MICRO_RANDOM_UPDATE_ROWS_PER_PAGE"
     printf "MICRO_RANDOM_UPDATE_WARMUP_PASSES=%s\n" "$MICRO_RANDOM_UPDATE_WARMUP_PASSES"
@@ -697,13 +700,36 @@ run_micro_random_lookup_workload() {
   : > "$sql"
   {
     echo "USE \`$db\`;"
+    local batch_ids=""
+    local batch_count=0
+    local batch_size="$MICRO_RANDOM_BATCH_SIZE"
+    if [[ "$batch_size" -lt 1 ]]; then
+      batch_size=1
+    fi
     for pass in $(seq 1 "$MICRO_RANDOM_PASSES"); do
       for i in $(seq 0 $(( MICRO_RANDOM_PAGES - 1 ))); do
         local page=$(( (i * MICRO_RANDOM_STRIDE) % MICRO_RANDOM_PAGES ))
         local id=$(( page * MICRO_RANDOM_ROWS_PER_PAGE + 1 ))
-        echo "SELECT LENGTH(pad01) + LENGTH(pad16) FROM hot FORCE INDEX(PRIMARY) WHERE id = $id;"
+        if [[ "$batch_size" -eq 1 ]]; then
+          echo "SELECT LENGTH(pad01) + LENGTH(pad16) FROM hot FORCE INDEX(PRIMARY) WHERE id = $id;"
+        else
+          if [[ -z "$batch_ids" ]]; then
+            batch_ids="$id"
+          else
+            batch_ids="$batch_ids,$id"
+          fi
+          batch_count=$(( batch_count + 1 ))
+          if [[ "$batch_count" -ge "$batch_size" ]]; then
+            echo "SELECT SUM(LENGTH(pad01) + LENGTH(pad16)) FROM hot FORCE INDEX(PRIMARY) WHERE id IN ($batch_ids);"
+            batch_ids=""
+            batch_count=0
+          fi
+        fi
       done
     done
+    if [[ "$batch_size" -gt 1 && -n "$batch_ids" ]]; then
+      echo "SELECT SUM(LENGTH(pad01) + LENGTH(pad16)) FROM hot FORCE INDEX(PRIMARY) WHERE id IN ($batch_ids);"
+    fi
   } > "$sql"
   mysql_cmd -N < "$sql" > "$out"
 }
